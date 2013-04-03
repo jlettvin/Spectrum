@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+###############################################################################
 """
 The Spectrum class enables operations on image data.
 Light is produced, absorbed, reflected, refracted, and diffracted.
@@ -97,6 +98,7 @@ as it approaches equilibrium.
 When a sensor changes state, it generates a difference signal.
 
 """
+###############################################################################
 
 import os, inspect, scipy, random
 
@@ -105,10 +107,11 @@ from optparse import OptionParser
 from scipy import arange, exp, random, zeros, ones, array
 from scipy.constants import *
 
-nm = milli * micron
+###############################################################################
 
 scipy.set_printoptions(precision=2, linewidth=1000)
 
+#CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 class Spectrum(object):
 
     # First instance forces initialization, wait for OptionParser to parse argv.
@@ -123,19 +126,21 @@ class Spectrum(object):
 
     def id(this, name=None):
         if name: this.name = name
-        if this.name: assert not Spectrum.named.has_key(this.name); this[this.name] = this
+        if this.name:
+            assert not Spectrum.named.has_key(this.name)
+            this[this.name] = this
         return this
 
     def __init__(this, **kwargs):
         if not Spectrum.initialized:
-            Spectrum.stepsize    = float(kwargs.get('stepsize'   ,  10))
+            Spectrum.stepsize    = float(kwargs.get('stepsize'   ,   1))
             Spectrum.infrared    = float(kwargs.get('infrared'   , 740))
             Spectrum.ultraviolet = float(kwargs.get('ultraviolet', 380))
             Spectrum.visible = {
-                    'ultraviolet': Spectrum.ultraviolet * nm,
-                    'infrared'   : Spectrum.infrared    * nm,
-                    'step'       : Spectrum.stepsize    * nm}
-            Spectrum.visible['step'] = Spectrum.stepsize * nm
+                    'ultraviolet': Spectrum.ultraviolet * nano,
+                    'infrared'   : Spectrum.infrared    * nano,
+                    'step'       : Spectrum.stepsize    * nano}
+            Spectrum.visible['step'] = Spectrum.stepsize * nano
             Spectrum.wavelengths = arange(
                     Spectrum.visible['ultraviolet'],
                     Spectrum.visible['infrared'],
@@ -150,32 +155,51 @@ class Spectrum(object):
         initial     = kwargs.get('initial', None)
         assert not (temperature and initial)
 
-        if kwargs.get('rand', False): this.line = random.random((Spectrum.length,));
-        elif kwargs.get('sweep', False): this.line = arange(0.0, 1.0, 1.0/Spectrum.length)
-        elif temperature: this.line = BlackBody.amplitude(this.wavelengths, temperature)
+        if kwargs.get('rand', False):
+            this.line = random.random((Spectrum.length,));
+        elif kwargs.get('sweep', False):
+            this.line = arange(0.0, 1.0, 1.0/Spectrum.length)
+        elif temperature:
+            this.line = BlackBody.amplitude(this.wavelengths, temperature)
         elif initial: this.line = initial * ones(Spectrum.length, float)
         else: this.line = kwargs.get('line', zeros(Spectrum.length, float))
 
         if not initial: this.normalize()
 
     def __call__(this, wavelength):
-        index = int(wavelength / nano) - this.wavelengths[0]
-        assert 0 <= index <= this.extent
+        index = int(wavelength / nano) - int(this.wavelengths[0]/nano)
+        assert 0 <= index < len(this.line)
         return this.line[index]
 
-    def __setitem__(this, name, spectrum): Spectrum.named[name] = spectrum
-    def __getitem__(this, name): return Spectrum.named.get(name, None)
-    def __repr__(this): return ((this.name + ': ') if this.name else '') + str(this.line)
+    def __setitem__(this, name, spectrum):
+        Spectrum.named[name] = spectrum
+    def __getitem__(this, name):
+        return Spectrum.named.get(name, None)
+    def __repr__(this):
+        return ((this.name + ': ') if this.name else '') + str(this.line)
 
-    def __add__(this, that): return Spectrum(line = this.line + that.line)
-    def __sub__(this, that): return Spectrum(line = this.line - that.line)
-    def __mul__(this, that): return Spectrum(line = this.line * that.line) # Hadamard product
-    def __div__(this, that): return Spectrum(line = this.line / that.line)
+    def __add__(this, that):
+        return Spectrum(line = this.line + that.line)
+    def __sub__(this, that):
+        return Spectrum(line = this.line - that.line)
+    # Hadamard product
+    def __mul__(this, that):
+        return Spectrum(line = this.line * that.line)
+    def __div__(this, that):
+        return Spectrum(line = this.line / that.line)
 
-    def __iadd__(this, that): this.line = this.line + that.line; return this.normalize()
-    def __isub__(this, that): this.line = this.line - that.line; return this.normalize()
-    def __imul__(this, that): this.line = this.line * that.line; return this.normalize()
-    def __idiv__(this, that): this.line = this.line / that.line; return this.normalize()
+    def __iadd__(this, that):
+        this.line = this.line + that.line
+        return this.normalize()
+    def __isub__(this, that):
+        this.line = this.line - that.line
+        return this.normalize()
+    def __imul__(this, that):
+        this.line = this.line * that.line
+        return this.normalize()
+    def __idiv__(this, that):
+        this.line = this.line / that.line
+        return this.normalize()
 
     def normalize(this):
         denominator = this.line.max()
@@ -183,10 +207,12 @@ class Spectrum(object):
         return this
 
     def inverse(this):
-        """Convert reflection spectrum to absorption spectrum or the other way around."""
+        """Convert reflection spectrum to absorption spectrum
+        or the other way around."""
         this.normalize()
         this.line = 1.0 - this.line
 
+#CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 class BlackBody(object):
     """Physical constants"""
     hcok, Volume = h * c / k, centi * femto
@@ -195,8 +221,10 @@ class BlackBody(object):
 
     @staticmethod
     def amplitude(wavelength, T):
-        return BlackBody.Constant/((wavelength**5)*(exp(BlackBody.hcok/(wavelength*T))-1.0))
+        return BlackBody.Constant/(
+                (wavelength**5)*(exp(BlackBody.hcok/(wavelength*T))-1.0))
 
+#CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 class Photoreceptor(Spectrum):
     """emulating Bowmaker and Dartnall, 1980"""
 
@@ -217,40 +245,69 @@ class Photoreceptor(Spectrum):
     @property
     def peak(this): return this.center
 
+#CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
+class Photoreceptors(object):
+    def __init__(self):
+        """Create photoreceptors"""
+        Photoreceptor({564:1.0,400:0.25}).id('photoreceptor.L')
+        #print spectrum['photoreceptor.L']
+        Photoreceptor({534:1.0,400:0.25}).id('photoreceptor.M')
+        #print spectrum['photoreceptor.M']
+        Photoreceptor({498:1.0,400:0.25}).id('photoreceptor.X')
+        #print spectrum['photoreceptor.X']
+        Photoreceptor({420:1.0         }).id('photoreceptor.S')
+        #print spectrum['photoreceptor.S']
+
+#CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
+class Blackbodies(object):
+    def __init__(self):
+        """Create 3 blackbody spectra having different temperatures."""
+        B4K   = Spectrum(T = 4 * kilo).id('blackbody.4000K')
+        print spectrum['blackbody.4000K']
+        B5K   = Spectrum(T = 5 * kilo).id('blackbody.5000K')
+        print spectrum['blackbody.5000K']
+        B6K   = Spectrum(T = 6 * kilo).id('blackbody.6000K')
+        print spectrum['blackbody.6000K']
+        B456K = B4K + B5K + B6K
+        print B456K.id('B456K')
+
+#CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
+class Tests(object):
+    def __init__(self):
+        """Create random&initialized spectra, perform various math with them."""
+        Q = [Spectrum(rand=True).id('random.%d' % (i))
+                for i in range(5)]
+        R = [Spectrum(initial=float(1.0/(i+1))).id('initial.%d' % (i+1))
+                for i in range(5)]
+        # TODO Q and R are unchecked
+        """Create swept spectra and perform various math with them."""
+        S = [Spectrum(sweep=True).id('sweep.%d' % (i))
+                for i in range(5)]
+
+        print S[0]; print S[1]
+        S[2]  = S[0] * S[1]; print S[2].id('Hadamard.1')
+        S[3]  = S[0] + S[1]; print S[3].id('spectralsum.1')
+        S[4] += S[3]       ; print S[4].id('spectralsum.2')
+
+spectrum = Spectrum()
+
+#MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM
 if __name__ == "__main__":
     parser = OptionParser()
-    parser.add_option("-i", "--infrared"   , dest="infrared"   , default=740,
-            help="longest lambda wavelength in nanometers [default 740]")
-    parser.add_option("-u", "--ultraviolet", dest="ultraviolet", default=380,
-            help="shortest lambda wavelength in nanometers [default 380]")
-    parser.add_option("-s", "--step-size"  , dest="stepsize"   , default= 10,
-            help="width of lambda bucket in nanometers [default 10]")
-    parser.add_option("-v", "--verbose"    , action="store_false", dest="verbose", default=True,
-            help="announce actions and sizes")
-    """Create instance of base for generic access to spectrum naming dictionary."""
+    #parser.add_option("-i", "--infrared"   , dest="infrared"   , default=740,
+            #help="longest lambda wavelength in nanometers [default 740]")
+    #parser.add_option("-u", "--ultraviolet", dest="ultraviolet", default=380,
+            #help="shortest lambda wavelength in nanometers [default 380]")
+    #parser.add_option("-s", "--step-size"  , dest="stepsize"   , default= 10,
+            #help="width of lambda bucket in nanometers [default 10]")
+    #parser.add_option( "-v", "--verbose",
+            #action="store_false", dest="verbose", default=True,
+            #help="announce actions and sizes")
+    """Create base for generic access to spectrum naming dictionary."""
     (options, args) = parser.parse_args()
-    spectrum = Spectrum(**vars(options))
+    #spectrum = Spectrum(**vars(options))
 
-    """Create photoreceptors"""
-    Photoreceptor({564:1.0,400:0.25}).id('photoreceptor.L'); print spectrum['photoreceptor.L']
-    Photoreceptor({534:1.0,400:0.25}).id('photoreceptor.M'); print spectrum['photoreceptor.M']
-    Photoreceptor({498:1.0,400:0.25}).id('photoreceptor.X'); print spectrum['photoreceptor.X']
-    Photoreceptor({420:1.0         }).id('photoreceptor.S'); print spectrum['photoreceptor.S']
-
-    """Create 3 blackbody spectra having different temperatures."""
-    B4K   = Spectrum(T = 4 * kilo).id('blackbody.4000K'); print spectrum['blackbody.4000K']
-    B5K   = Spectrum(T = 5 * kilo).id('blackbody.5000K'); print spectrum['blackbody.5000K']
-    B6K   = Spectrum(T = 6 * kilo).id('blackbody.6000K'); print spectrum['blackbody.6000K']
-    B456K = B4K + B5K + B6K                             ; print B456K.id('B456K')
-
-    """Create random and initialized spectra and perform various math with them."""
-    Q = [Spectrum(rand=True).id('random.%d' % (i)) for i in range(5)]
-    R = [Spectrum(initial=float(1.0/(i+1))).id('initial.%d' % (i+1)) for i in range(5)]
-    # TODO Q and R are unchecked
-    """Create swept spectra and perform various math with them."""
-    S = [Spectrum(sweep=True).id('sweep.%d' % (i)) for i in range(5)]
-
-    print S[0]; print S[1]
-    S[2]  = S[0] * S[1]; print S[2].id('Hadamard.1')
-    S[3]  = S[0] + S[1]; print S[3].id('spectralsum.1')
-    S[4] += S[3]       ; print S[4].id('spectralsum.2')
+    photoreceptors  = Photoreceptors()
+    blackbodies     = Blackbodies()
+    tests           = Tests()
+###############################################################################
